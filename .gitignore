@@ -1,7 +1,6 @@
-
-# Ignore IDE files
+target/
+out/
+*.class
+.DS_Store
 .idea/
-.vscode/
 *.iml
-
-

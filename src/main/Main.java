@@ -32,7 +32,8 @@ public class Main {
         players.add(new Player("Player 4", 4, new DisruptiveStrategy()));      // Disruptive strategy to block others
 
         // Initialize the game simulation with the players and a set number of turns (60 in this case)
-        SimulationExperiment game = new SimulationExperiment(players, 60);
+        SimulationExperiment game = new SimulationExperiment(players, args.length > 0 ? Integer.parseInt(args[0]) : 1000,
+                args.length > 1 ? Long.parseLong(args[1]) : 42L);
 
         // Start the simulation
         game.runSimulation();

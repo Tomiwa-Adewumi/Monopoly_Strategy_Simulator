@@ -1,92 +1,51 @@
 # Monopoly Strategy Simulator
 
-Monopoly Strategy Simulator is a Java-based simulation of the classic board game Monopoly. The project implements various player strategies to analyze their effectiveness in competitive gameplay.
+A Java experiment comparing four strategies in a **simplified Monopoly-style game**. It demonstrates domain modeling, strategy interfaces, deterministic experiments, and regression testing.
 
----
+## Run and test
 
-## Table of Contents
-1. [Project Overview](#project-overview)
-2. [Features](#features)
-3. [Implemented Strategies](#implemented-strategies)
-4. [Experiment Design](#experiment-design)
-5. [Results and Analysis](#results-and-analysis)
-6. [Technologies Used](#technologies-used)
----
+Requires Java 17+ and Maven 3.9+.
 
-## Project Overview
-Monopoly Strategy Simulator recreates the mechanics of Monopoly to evaluate how different player strategies perform under simulated conditions. Players aim to accumulate wealth, develop properties, and outlast their opponents by avoiding bankruptcy.
+```bash
+mvn verify
+mvn -q exec:java -Dexec.args="1000 42" > results.txt
+```
 
----
+Arguments are trial count and random seed (defaults: 1000 and 42). The last five lines contain the aggregate results. No credentials or external services are needed.
 
-## Features
-- **Core Monopoly Mechanics**:
-  - Property purchasing and upgrading.
-  - Turn-based gameplay.
-  - Special spaces like "Go to Jail."
+## Design
 
-- **Player Strategies**:
-  - Customizable strategies implemented via a Strategy interface.
+`Board` defines spaces; `Player` owns balance, position and seeded dice; `Strategy` controls purchases/upgrades; `Game` advances turns and chooses a winner; `SimulationExperiment` aggregates results by stable player ID.
 
-- **Simulation Metrics**:
-  - Number of wins per strategy.
-  - Average player balance.
-  - Properties owned by players.
+Each trial resets player and strategy state. Starting order rotates between trials. Selecting a winner never reorders the input roster. Every trial records one winner, including threshold and turn-limit exits. Tests cover these invariants, bankruptcy, jail turn accounting, and repeatability.
 
-- **Customizable Gameplay**:
-  - Adjustable starting balances and turn limits.
+## Rules and limitations
 
----
+- 18-space board; each player starts with $750.
+- A game ends with one solvent player, a $1500 balance, or 100 individual player turns (including jail turns).
+- At the turn limit, balance determines the winner, followed by property count and lower player ID.
+- Insolvent players stop taking turns; their properties become available when landed on again.
+- Rent transfers at most the payer's remaining funds. Upgrades cost $10 times each property's next level across its three-property color group.
+- No auctions, mortgages, trading, full official board, or official Monopoly rule compatibility. Results describe this model only.
 
-## Implemented Strategies
-1. **Collector Strategy**:
-  - Focuses on monopolizing a specific color group of properties.
-  - Prioritizes upgrading properties of the target color.
+## Reproduced experiment
 
-2. **Cautious Saver Strategy**:
-  - Maintains a financial safety buffer before making purchases or upgrades.
-  - Prioritizes financial stability over rapid expansion.
+1,000 trials, seed 42, generated using the command above after the correctness fixes:
 
-3. **Disruptive Strategy**:
-  - Blocks opponents by purchasing diverse properties to prevent monopolies.
-  - Does not prioritize upgrades.
+| Strategy | Wins | Average balance | Average properties |
+| --- | ---: | ---: | ---: |
+| Aggressive buyer | 220 | 62.39 | 1.49 |
+| Cautious saver | 384 | 123.03 | 1.42 |
+| Collector (green) | 132 | 50.21 | 0.24 |
+| Disruptive | 264 | 97.92 | 1.27 |
 
-4. **Aggressive Buyer Strategy**:
-  - Acquires as many properties as possible without considering risks.
-  - Encourages aggressive property upgrades.
+Bankrupt players contribute zero balance and zero properties to aggregate metrics. These are synthetic results for one seed and ruleset, not a claim of universally optimal play. Compare multiple seeds and uncertainty intervals before drawing broader conclusions. Earlier result tables were removed because winner and player-attribution bugs invalidated them.
 
----
+## Repository
 
-## Experiment Design
-- **Simulation Parameters**:
-  - Players start with a balance of $750 and begin at position 0 on the board.
-  - Simulations run for a maximum of 100 turns or until only one player remains.
+- `src/main/`: domain and experiment code
+- `src/test/`: JUnit regression tests
+- `pom.xml`: repeatable build
+- `.github/workflows/ci.yml`: Java 17 verification
 
-- **Metrics Collected**:
-  - Number of wins per strategy.
-  - Average player balance at the end of the game.
-  - Average number of properties owned.
-
----
-
-## Results and Analysis
-| Strategy              | Wins | Avg. Balance | Avg. Properties Owned |
-|-----------------------|------|--------------|------------------------|
-| Collector Strategy    | 23   | $131         | 2                      |
-| Cautious Saver        | 10   | $474         | 1                      |
-| Disruptive Strategy   | 22   | $0           | 0                      |
-| Aggressive Buyer      | 5    | $257         | 1                      |
-
-**Key Insights**:
-- The **Collector Strategy** emerged as the most effective, balancing targeted investments and property upgrades.
-- The **Cautious Saver** maintained financial stability but struggled to compete due to a lack of property acquisitions.
-- The **Disruptive Strategy** effectively hindered opponents but sacrificed financial stability.
-- The **Aggressive Buyer Strategy** was the least successful due to its high-risk approach.
-
----
-
-## Technologies Used
-- **Java**: Core programming language for the simulation.
-- **GitHub**: Version control.
-
----
-
+Generated bytecode, IDE output, and operating-system files are excluded from source control.
