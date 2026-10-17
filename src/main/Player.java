@@ -20,6 +20,7 @@ public class Player {
     private boolean isInJail;
     private List<Space> spacesOwned;
     private Strategy strategy;
+    private final Random random;
 
     /**
      * Constructor to initialize the player with a name, ID, and strategy.
@@ -30,6 +31,11 @@ public class Player {
      * @param strategy The strategy the player will follow during the game
      */
     public Player(String name, int id, Strategy strategy) {
+        this(name, id, strategy, new Random());
+    }
+
+    public Player(String name, int id, Strategy strategy, Random random) {
+        this.random = random;
         this.name = name;
         this.id = id;
         this.strategy = strategy;
@@ -136,6 +142,7 @@ public class Player {
         this.balance = 750; // Reset balance
         this.spacesOwned = new ArrayList<>(); // Reset properties owned
         this.isInJail = false; // Player starts outside jail
+        strategy.reset();
     }
 
     /**
@@ -149,6 +156,9 @@ public class Player {
             spacesOwned.add(property);
             balance -= property.getPrice();
             property.buy(this);
+            if (strategy instanceof main.Strategy.DisruptiveStrategy disruptive) {
+                disruptive.addOwnedColor(property.getColor());
+            }
             return true;
         } else {
             System.out.println("Cannot acquire property. Either insufficient balance or already owned.");
@@ -162,7 +172,6 @@ public class Player {
      * @return The total of the dice rolls
      */
     public int takeTurn() {
-        Random random = new Random();
         int dice1 = random.nextInt(6) + 1; // Dice roll 1-6
         int dice2 = random.nextInt(6) + 1; // Dice roll 1-6
         return dice1 + dice2;
@@ -205,7 +214,7 @@ public class Player {
         if (strategy.shouldBuyLand(property, balance)) {
             return acquireProperty(property); // Attempt to buy the property
         }
-        if (strategy.shouldBuyProperty(property, balance)) {
+        if (property.getOwner() == this && strategy.shouldBuyProperty(property, balance)) {
             return tryUpgrade(property); // Attempt to upgrade properties
         }
         return false;
@@ -226,9 +235,9 @@ public class Player {
                 .toList();
 
         if (sameColor.size() >= 3) { // At least 3 properties required for upgrade
-            int upgradeCost = 10 * sameColor.stream().mapToInt(Property::getUpgradeLevel).sum();
+            int upgradeCost = 10 * sameColor.stream().mapToInt(p -> p.getUpgradeLevel() + 1).sum();
             if (this.balance >= upgradeCost) {
-                sameColor.forEach(p -> p.increaseRent(30)); // Increase rent for all properties in the group
+                sameColor.forEach(p -> { p.increaseRent(30); p.setUpgradeLevel(p.getUpgradeLevel() + 1); }); // Increase rent for all properties in the group
                 this.balance -= upgradeCost; // Deduct upgrade cost
                 System.out.println("Successfully upgraded properties of color: " + property.getColor());
                 return true;

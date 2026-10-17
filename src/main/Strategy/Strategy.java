@@ -4,6 +4,8 @@ package main.Strategy;
 import main.Space.Property;
 
 public interface Strategy {
+    default void reset() {}
+
     /**
      * Determines if the player should buy a property.
      *

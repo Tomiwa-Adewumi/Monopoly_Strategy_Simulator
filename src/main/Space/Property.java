@@ -130,12 +130,14 @@ public class Property extends Space {
      */
     @Override
     public boolean action(Player currentPlayer) {
+        if (owned && owner.getBalance() <= 0) { owned = false; owner = null; }
         if (owned) {
             // Handle rent payment if property is owned by another player
             if (!owner.equals(currentPlayer)) {
                 System.out.println(currentPlayer.getName() + " pays rent to " + owner.getName());
+                int paid = Math.min(rent, Math.max(0, currentPlayer.getBalance()));
                 currentPlayer.makePayment(rent); // Deduct rent from the current player
-                owner.acceptMoney(rent); // Add rent to the owner's balance
+                owner.acceptMoney(paid); // Add rent to the owner's balance
             } else {
                 // Log message if the current player owns the property
                 System.out.println(currentPlayer.getName() + " already owns " + getName());

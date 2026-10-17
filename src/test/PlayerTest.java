@@ -176,7 +176,8 @@ public class PlayerTest {
         player.acquireProperty(property2);
         player.acquireProperty(property3);
         assertTrue(player.tryUpgrade(property1)); // Should be able to upgrade
-        assertEquals(450, player.getBalance()); // Balance should decrease after upgrade
+        assertEquals(420, player.getBalance()); // Three first-level upgrades cost $10 each
+        assertEquals(1, property1.getUpgradeLevel());
         assertEquals(230, property1.getRent()); // Rent should increase after upgrading the property
     }
 }

@@ -1,92 +1,64 @@
 package main;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Random;
 
-/**
- * Simulates a series of Monopoly games with multiple players, collecting various statistics
- * such as wins, balances, properties owned, and houses owned across multiple trials.
- */
+/** Seeded trials, with results keyed by stable player ID rather than finishing order. */
 public class SimulationExperiment {
-    private ArrayList<Player> players; // Players in the game
-    private int trials; // Number of games to simulate
-    private int[] wins; // Number of wins for each player
-    private int totalBalance; // Cumulative balance for all players
-    private int totalProperties; // Cumulative properties owned by all players
-    private int[] totalHouses; // Cumulative number of houses for each player
-    private int[] totalPlayerBalance; // Cumulative balance for each player
+    public record Result(int wins, double averageBalance, double averageProperties) {}
+    private final List<Player> players;
+    private final int trials;
+    private final long seed;
+    private final Map<Integer, long[]> totals = new LinkedHashMap<>();
 
-    /**
-     * Constructor to initialize the simulation with the given players and number of trials.
-     *
-     * @param players The list of players participating in the simulation
-     * @param trials The number of trials (games) to simulate
-     */
-    public SimulationExperiment(ArrayList<Player> players, int trials) {
-        this.players = players;
+    public SimulationExperiment(ArrayList<Player> players, int trials) { this(players, trials, 42L); }
+    public SimulationExperiment(List<Player> players, int trials, long seed) {
+        if (trials <= 0 || players.isEmpty()) throw new IllegalArgumentException("Players and positive trial count required");
+        this.players = List.copyOf(players);
         this.trials = trials;
-        this.wins = new int[players.size()];
-        this.totalBalance = 0;
-        this.totalProperties = 0;
-        this.totalHouses = new int[players.size()];
-        this.totalPlayerBalance = new int[players.size()];
-    }
-
-    /**
-     * Runs the simulation for the specified number of trials, playing a full game in each trial.
-     * Collects and updates statistics such as the number of wins, balances, and properties owned.
-     */
-    public void runSimulation() {
-        for (int i = 0; i < trials; i++) {
-            // Create a deep copy of the players list for each simulation run
-            ArrayList<Player> playersCopy = new ArrayList<>();
-            for (Player player : players) {
-                playersCopy.add(new Player(player.getName(), player.getId(), player.getStrategy()));
-            }
-
-            // Create and play a new game with the copied list of players
-            Game game = new Game(playersCopy);
-            game.resetPlayerStates(); // Reset player states before starting the game
-            game.startGame(); // Start the game
-
-            // Determine the winner of the game
-            Player winner = game.getWinner();
-            int winnerIndex = winner.getId() - 1;
-
-            // Safely update the wins array for the winner
-            if (winnerIndex >= 0 && winnerIndex < wins.length) {
-                wins[winnerIndex]++;
-            } else {
-                System.out.println("Error: Winner ID is invalid.");
-            }
-
-            // Collect metrics from each player after the game
-            for (int j = 0; j < playersCopy.size(); j++) {
-                Player player = playersCopy.get(j);
-                totalBalance += player.getBalance();
-                totalProperties += player.getNumberOwned();
-                totalHouses[j] += player.getNumberOwned();
-                totalPlayerBalance[j] += player.getBalance();
-            }
+        this.seed = seed;
+        for (Player p : players) {
+            if (totals.put(p.getId(), new long[3]) != null) throw new IllegalArgumentException("Duplicate player ID");
         }
-
-        // Display results after all trials have completed
+    }
+    public void runSimulation() {
+        totals.values().forEach(t -> java.util.Arrays.fill(t, 0));
+        Random seeds = new Random(seed);
+        for (int i = 0; i < trials; i++) {
+            List<Player> trial = new ArrayList<>();
+            for (Player p : players) {
+                Player copy = new Player(p.getName(), p.getId(), p.getStrategy(), new Random(seeds.nextLong()));
+                copy.reset();
+                trial.add(copy);
+            }
+            // Rotate starting position to avoid giving one strategy every first move.
+            java.util.Collections.rotate(trial, i % trial.size());
+            Game game = new Game(trial);
+            game.startGame();
+            totals.get(game.getWinner().getId())[0]++;
+            recordPlayers(trial);
+        }
         displayResults();
     }
-
-    /**
-     * Displays the results of the simulation after all trials have been run.
-     * This includes the total wins, average balance, and average number of houses owned for each player.
-     */
-    public void displayResults() {
-        System.out.println("Simulation Results:");
-        for (int i = 0; i < players.size(); i++) {
-            Player player = players.get(i);
-            System.out.println(player.getName() + " - Wins: " + wins[i]);
-            System.out.println("Average Balance: " + (totalPlayerBalance[i] / trials));
-            System.out.println("Average properties Owned: " + (totalHouses[i] / trials));
-            System.out.println();
+    void recordPlayers(List<Player> trial) {
+        for (Player p : trial) {
+            long[] total = totals.get(p.getId());
+            total[1] += Math.max(0, p.getBalance());
+            total[2] += p.getBalance() > 0 ? p.getNumberOwned() : 0;
         }
-        System.out.println("Overall Average Balance: " + (totalBalance / (trials * players.size())));
-        System.out.println("Overall Average Properties Owned: " + (totalProperties / (trials * players.size())));
+    }
+    public Map<Integer, Result> results() {
+        Map<Integer, Result> result = new LinkedHashMap<>();
+        totals.forEach((id, t) -> result.put(id, new Result((int) t[0], (double)t[1] / trials, (double)t[2] / trials)));
+        return result;
+    }
+    public void displayResults() {
+        System.out.printf("Seed: %d; trials: %d%n", seed, trials);
+        results().forEach((id, r) -> System.out.printf(java.util.Locale.ROOT,
+                "Player %d: wins=%d, average balance=%.2f, average properties=%.2f%n",
+                id, r.wins(), r.averageBalance(), r.averageProperties()));
     }
 }

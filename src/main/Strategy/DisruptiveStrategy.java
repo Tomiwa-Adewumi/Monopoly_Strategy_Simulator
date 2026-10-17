@@ -53,6 +53,9 @@ public class DisruptiveStrategy implements Strategy {
      *
      * @param color the color of the property to add to the owned set
      */
+    @Override
+    public void reset() { ownedColors.clear(); }
+
     public void addOwnedColor(String color) {
         // Adds a new color to the set of owned property colors
         ownedColors.add(color);
